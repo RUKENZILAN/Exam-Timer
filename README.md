@@ -1,6 +1,6 @@
 # Exam-Timer
 A secure, easy-to-use standalone exam countdown timer for lecturers and
-exam invigilators. It runs entirely in the browser — no installation, no
+exam invigilators. It runs entirely in the browser, no installation, no
 internet connection, and no data ever leaves the device.
 The app is a single self-contained HTML file (`public/exam-timer.html`) with
 all styles and scripts inlined. Open it in any modern browser and it just
