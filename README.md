@@ -6,6 +6,9 @@ The app is a single self-contained HTML file (`public/exam-timer.html`) with
 all styles and scripts inlined. Open it in any modern browser and it just
 works.
 ---
+You can reach the countdown timer from this link [https://rukenzilan.github.io/Exam-Timer/]
+---
+
 Features
 Course name — label the exam so students and staff know which paper is
 being timed.
