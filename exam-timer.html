@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Exam Timer</title>
+<meta name="description" content="Standalone exam countdown timer for lecturers." />
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #121a2c;
+    --panel-2: #1a2440;
+    --text: #eef2ff;
+    --muted: #8b93a7;
+    --accent: #4f8cff;
+    --accent-2: #22c55e;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --border: rgba(255,255,255,0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: radial-gradient(1200px 700px at 20% -10%, #1b2750 0%, transparent 60%),
+                radial-gradient(900px 600px at 100% 100%, #16264d 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .app {
+    width: 100%;
+    max-width: 880px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 20px; margin: 0; letter-spacing: 0.3px; }
+  .badge {
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  form.setup {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    background: var(--panel-2);
+    padding: 16px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+  form.setup .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input {
+    width: 100%;
+    background: #0e1730;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button {
+    cursor: pointer;
+    border: none;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    background: var(--accent);
+    transition: transform .05s, opacity .15s, background .15s;
+  }
+  button.secondary { background: #2b3556; }
+  button.success { background: var(--accent-2); }
+  button.warn { background: var(--warn); color: #1a1200; }
+  button.danger { background: var(--danger); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+
+  .timer {
+    margin-top: 22px;
+    text-align: center;
+    padding: 32px 20px;
+    background: linear-gradient(180deg, #10192f 0%, #0d1428 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .course { font-size: 15px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .clock {
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(64px, 14vw, 140px);
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin: 10px 0 6px;
+    line-height: 1;
+  }
+  .meta { color: var(--muted); font-size: 13px; }
+  .progress {
+    height: 8px;
+    background: #0b1428;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 18px;
+    border: 1px solid var(--border);
+  }
+  .bar { height: 100%; width: 0%; background: var(--accent); transition: width .3s linear, background .3s; }
+  .status {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .status.running { color: var(--accent-2); border-color: rgba(34,197,94,0.3); }
+  .status.paused { color: var(--warn); border-color: rgba(245,158,11,0.3); }
+  .status.finished { color: var(--danger); border-color: rgba(239,68,68,0.3); }
+
+  .warn-mode .clock { color: var(--warn); }
+  .danger-mode .clock { color: var(--danger); }
+  .finished-mode { animation: flash 1.2s infinite; }
+  @keyframes flash { 0%,100% { background:#10192f; } 50% { background:#3a0f14; } }
+
+  footer { margin-top: 16px; text-align: center; font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    form.setup { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <main class="app" role="main">
+    <header>
+      <h1>Exam Timer</h1>
+      <span class="badge">Offline · Standalone</span>
+    </header>
+
+    <form class="setup" id="setup" autocomplete="off">
+      <div class="full">
+        <label for="course">Course name</label>
+        <input id="course" type="text" required maxlength="120" placeholder="e.g. Introduction to Algorithms" />
+      </div>
+      <div>
+        <label for="start">Start time</label>
+        <input id="start" type="time" required />
+      </div>
+      <div>
+        <label for="end">End time</label>
+        <input id="end" type="time" required />
+      </div>
+      <div>
+        <label for="warn">Warning (min before end)</label>
+        <input id="warn" type="number" min="0" max="180" value="10" />
+      </div>
+      <div class="full actions">
+        <button type="submit" id="startBtn">Start Exam</button>
+        <button type="button" id="pauseBtn" class="warn" disabled>Pause</button>
+        <button type="button" id="resumeBtn" class="success" disabled>Resume</button>
+        <button type="button" id="resetBtn" class="secondary" disabled>Reset</button>
+        <button type="button" id="fsBtn" class="secondary">Fullscreen</button>
+      </div>
+    </form>
+
+    <section class="timer" id="timerBox" aria-live="polite">
+      <div class="course" id="courseLabel">— No exam configured —</div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="meta" id="meta">Enter course details above and press Start.</div>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="status" id="status">Idle</div>
+    </section>
+
+    <footer>Runs entirely in your browser. No data leaves this device.</footer>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const setup = $("setup");
+  const courseEl = $("course");
+  const startEl = $("start");
+  const endEl = $("end");
+  const warnEl = $("warn");
+  const startBtn = $("startBtn");
+  const pauseBtn = $("pauseBtn");
+  const resumeBtn = $("resumeBtn");
+  const resetBtn = $("resetBtn");
+  const fsBtn = $("fsBtn");
+  const clockEl = $("clock");
+  const metaEl = $("meta");
+  const barEl = $("bar");
+  const statusEl = $("status");
+  const courseLabel = $("courseLabel");
+  const timerBox = $("timerBox");
+
+  let state = {
+    running: false,
+    paused: false,
+    finished: false,
+    totalMs: 0,
+    remainingMs: 0,
+    lastTick: 0,
+    warnMs: 0,
+    course: "",
+  };
+  let tickId = null;
+
+  function parseTimeToday(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+
+  function fmt(ms) {
+    if (ms < 0) ms = 0;
+    const s = Math.floor(ms / 1000);
+    const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+    const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    const ss = String(s % 60).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
+
+  function sanitize(str) {
+    // Basic XSS-safe: rely on textContent, but also strip control chars.
+    return String(str || "").replace(/[\u0000-\u001F\u007F]/g, "").trim();
+  }
+
+  function render() {
+    clockEl.textContent = fmt(state.remainingMs);
+    const pct = state.totalMs > 0 ? (1 - state.remainingMs / state.totalMs) * 100 : 0;
+    barEl.style.width = Math.min(100, Math.max(0, pct)) + "%";
+
+    timerBox.classList.remove("warn-mode", "danger-mode", "finished-mode");
+    barEl.style.background = "var(--accent)";
+
+    if (state.finished) {
+      timerBox.classList.add("finished-mode", "danger-mode");
+      barEl.style.background = "var(--danger)";
+      statusEl.textContent = "Time is up";
+      statusEl.className = "status finished";
+    } else if (state.paused) {
+      statusEl.textContent = "Paused";
+      statusEl.className = "status paused";
+    } else if (state.running) {
+      statusEl.textContent = "Running";
+      statusEl.className = "status running";
+      if (state.remainingMs <= 60 * 1000) {
+        timerBox.classList.add("danger-mode");
+        barEl.style.background = "var(--danger)";
+      } else if (state.remainingMs <= state.warnMs) {
+        timerBox.classList.add("warn-mode");
+        barEl.style.background = "var(--warn)";
+      }
+    } else {
+      statusEl.textContent = "Idle";
+      statusEl.className = "status";
+    }
+  }
+
+  function tick() {
+    const now = performance.now();
+    const delta = now - state.lastTick;
+    state.lastTick = now;
+    if (state.running && !state.paused) {
+      state.remainingMs -= delta;
+      if (state.remainingMs <= 0) {
+        state.remainingMs = 0;
+        state.running = false;
+        state.finished = true;
+        clearInterval(tickId);
+        tickId = null;
+        beep();
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+      }
+    }
+    render();
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "sine"; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+      o.start(); o.stop(ctx.currentTime + 1.6);
+    } catch (e) { /* ignore */ }
+  }
+
+  setup.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const course = sanitize(courseEl.value);
+    if (!course) { courseEl.focus(); return; }
+    const start = parseTimeToday(startEl.value);
+    const end = parseTimeToday(endEl.value);
+    if (!start || !end) return;
+    if (end <= start) {
+      metaEl.textContent = "End time must be after start time.";
+      return;
+    }
+    const now = new Date();
+    const totalMs = end - start;
+    const remainingMs = end - now;
+    if (remainingMs <= 0) {
+      metaEl.textContent = "The end time has already passed.";
+      return;
+    }
+    const warnMinutes = Math.max(0, Math.min(180, Number(warnEl.value) || 0));
+
+    state = {
+      running: true,
+      paused: false,
+      finished: false,
+      totalMs: totalMs,
+      remainingMs: remainingMs,
+      lastTick: performance.now(),
+      warnMs: warnMinutes * 60 * 1000,
+      course: course,
+    };
+    courseLabel.textContent = course;
+    const startedNote = now < start
+      ? `Scheduled: ${startEl.value}–${endEl.value}`
+      : `Started: ${now.toTimeString().slice(0,5)} · Ends: ${endEl.value}`;
+    metaEl.textContent = startedNote;
+
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    resumeBtn.disabled = true;
+    resetBtn.disabled = false;
+    [courseEl, startEl, endEl, warnEl].forEach(el => el.disabled = true);
+
+    if (tickId) clearInterval(tickId);
+    tickId = setInterval(tick, 250);
+    render();
+  });
+
+  pauseBtn.addEventListener("click", () => {
+    if (!state.running || state.finished) return;
+    state.paused = true;
+    pauseBtn.disabled = true;
+    resumeBtn.disabled = false;
+    render();
+  });
+
+  resumeBtn.addEventListener("click", () => {
+    if (!state.running || state.finished) return;
+    state.paused = false;
+    state.lastTick = performance.now();
+    pauseBtn.disabled = false;
+    resumeBtn.disabled = true;
+    render();
+  });
+
+  resetBtn.addEventListener("click", () => {
+    if (!confirm("Reset the exam timer? This will stop the current exam.")) return;
+    if (tickId) { clearInterval(tickId); tickId = null; }
+    state = { running: false, paused: false, finished: false, totalMs: 0, remainingMs: 0, lastTick: 0, warnMs: 0, course: "" };
+    clockEl.textContent = "--:--:--";
+    barEl.style.width = "0%";
+    courseLabel.textContent = "— No exam configured —";
+    metaEl.textContent = "Enter course details above and press Start.";
+    statusEl.textContent = "Idle";
+    statusEl.className = "status";
+    timerBox.classList.remove("warn-mode", "danger-mode", "finished-mode");
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    resumeBtn.disabled = true;
+    resetBtn.disabled = true;
+    [courseEl, startEl, endEl, warnEl].forEach(el => el.disabled = false);
+  });
+
+  fsBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  });
+
+  // Warn before closing while an exam is running
+  window.addEventListener("beforeunload", (e) => {
+    if (state.running && !state.finished) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+
+  // Pre-fill start with current time
+  (function prefill() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    startEl.value = `${hh}:${mm}`;
+    const end = new Date(now.getTime() + 90 * 60 * 1000);
+    endEl.value = `${String(end.getHours()).padStart(2,"0")}:${String(end.getMinutes()).padStart(2,"0")}`;
+  })();
+})();
+</script>
+</body>
+</html>
