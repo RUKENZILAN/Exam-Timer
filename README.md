@@ -6,7 +6,7 @@ The app is a single self-contained HTML file (`public/exam-timer.html`) with
 all styles and scripts inlined. Open it in any modern browser and it just
 works.
 ---
-You can reach the countdown timer from this link [[[https://rukenzilan.github.io/Exam-Timer/](https://exam-timer-nine.vercel.app/)](https://exam-timer-nine.vercel.app/)]
+You can reach the countdown timer from this link [[(https://exam-timer-nine.vercel.app/)](https://exam-timer-nine.vercel.app/)]
 ---
 
 Features
